@@ -1,5 +1,23 @@
 // Configuration script
-let stations = ["Union Station GO", "Unionville GO", "Oakville", "Langstaff", "Milton", "Brampton", "Guelph", "Kitchener"];
+let STOUFFVILLE_LINE = ["Union Station GO", "Kennedy GO", "Agincourt GO", "Miliken GO", "Unionville", "Centennial GO", "Markham GO", "Mount Joy GO", "Stouffville GO", "Old Elm GO"];
+let RICHMOND_HILL_LINE = ["Union Station GO", "Oriole GO", "Old Cummer GO", "Langstaff GO", "Richmond Hill GO", "Gormley GO", "Bloomington GO"];
+let BARRIE_LINE = ["Union Station GO", "Downsview Park GO", "Rutherford GO", "Maple GO", "King City GO", "Aurora GO", "Newmarket GO", "East Gwillimbury GO", "Bradford GO", "Barrie South GO", "Allandale Waterfront GO"];
+let KITCHENER_LINE = ["Union Station GO", "Bloor GO", "Weston GO", "Etobicoke North GO", "Malton GO", "Bramalea GO", "Brampton Innovation GO", "Mount Pleasant GO", "Georgetown GO", "Acton GO", "Guelph Central GO", "Kitchener GO"];
+let LAKESHORE_EAST_LINE = ["Union Station GO", "Danforth GO", "Scarborough GO", "Eglinton GO", "Guildwood GO", "Rouge Hill GO", "Pickering GO", "Ajax GO", "Whitby GO", "Oshawa GO"];
+let LAKESHORE_WEST_LINE = ["Union Station GO", "Exhibition GO", "Mimico GO", "Long Branch GO", "Port Credit GO", "Clarkson GO", "Oakville GO", "Bronte GO", "Appleby GO", "Burlington GO", "West Harbour GO", "Hamilton GO", "St Catharines GO", "Niagara Falls GO"];
+let MILTON_LINE = ["Union Station GO", "Kipling GO", "Dixie GO", "Cooksville GO", "Erindale GO", "Streetsville GO", "Meadowvale GO", "Lisgar GO", "Milton GO"];
+let UP_EXPRESS = ["Union Station GO", "Bloor GO", "Weston GO", "Pearson Airport GO"];
+
+const stations = {
+    STOUFFVILLE_LINE: STOUFFVILLE_LINE,
+    RICHMOND_HILL_LINE: RICHMOND_HILL_LINE,
+    BARRIE_LINE: BARRIE_LINE,
+    KITCHENER_LINE: KITCHENER_LINE,
+    LAKESHORE_EAST_LINE: LAKESHORE_EAST_LINE,
+    LAKESHORE_WEST_LINE: LAKESHORE_WEST_LINE,
+    MILTON_LINE: MILTON_LINE,
+    UP_EXPRESS: UP_EXPRESS
+}
 
 const colorSchemes = {
     light: {
@@ -101,30 +119,66 @@ async function customizeColors() {
 
 async function configureStations() {
     try {
-        // Select departure station
-        let departureIndex;
-        while (departureIndex === undefined) {
-            let departureAlert = new Alert();
-            departureAlert.title = "Select Departure Station";
-            departureAlert.message = "Please select a station";
-            stations.forEach(station => departureAlert.addAction(station));
-            departureAlert.addCancelAction("Cancel");
-            departureIndex = await departureAlert.presentSheet();
-            if (departureIndex === -1) {
+        // Select departure line first
+        let departureLineIndex;
+        while (departureLineIndex === undefined) {
+            let departureLineAlert = new Alert();
+            departureLineAlert.title = "Select Departure Line";
+            departureLineAlert.message = "Please select a line";
+            Object.keys(stations).forEach(line => departureLineAlert.addAction(line));
+            departureLineAlert.addCancelAction("Cancel");
+            departureLineIndex = await departureLineAlert.presentSheet();
+            if (departureLineIndex === -1) {
                 return;
             }
         }
         
-        // Select arrival station
-        let arrivalIndex;
-        while (arrivalIndex === undefined) {
-            let arrivalAlert = new Alert();
-            arrivalAlert.title = "Select Arrival Station";
-            arrivalAlert.message = "Please select a station";
-            stations.forEach(station => arrivalAlert.addAction(station));
-            arrivalAlert.addCancelAction("Cancel");
-            arrivalIndex = await arrivalAlert.presentSheet();
-            if (arrivalIndex === -1) {
+        // Get departure line name and stations
+        let departureLineName = Object.keys(stations)[departureLineIndex];
+        let departureStations = stations[departureLineName];
+        
+        // Select departure station from the selected line
+        let departureStationIndex;
+        while (departureStationIndex === undefined) {
+            let departureStationAlert = new Alert();
+            departureStationAlert.title = `Select Departure Station (${departureLineName})`;
+            departureStationAlert.message = "Please select a station";
+            departureStations.forEach(station => departureStationAlert.addAction(station));
+            departureStationAlert.addCancelAction("Cancel");
+            departureStationIndex = await departureStationAlert.presentSheet();
+            if (departureStationIndex === -1) {
+                return;
+            }
+        }
+        
+        // Select arrival line
+        let arrivalLineIndex;
+        while (arrivalLineIndex === undefined) {
+            let arrivalLineAlert = new Alert();
+            arrivalLineAlert.title = "Select Arrival Line";
+            arrivalLineAlert.message = "Please select a line";
+            Object.keys(stations).forEach(line => arrivalLineAlert.addAction(line));
+            arrivalLineAlert.addCancelAction("Cancel");
+            arrivalLineIndex = await arrivalLineAlert.presentSheet();
+            if (arrivalLineIndex === -1) {
+                return;
+            }
+        }
+        
+        // Get arrival line name and stations
+        let arrivalLineName = Object.keys(stations)[arrivalLineIndex];
+        let arrivalStations = stations[arrivalLineName];
+        
+        // Select arrival station from the selected line
+        let arrivalStationIndex;
+        while (arrivalStationIndex === undefined) {
+            let arrivalStationAlert = new Alert();
+            arrivalStationAlert.title = `Select Arrival Station (${arrivalLineName})`;
+            arrivalStationAlert.message = "Please select a station";
+            arrivalStations.forEach(station => arrivalStationAlert.addAction(station));
+            arrivalStationAlert.addCancelAction("Cancel");
+            arrivalStationIndex = await arrivalStationAlert.presentSheet();
+            if (arrivalStationIndex === -1) {
                 return;
             }
         }
@@ -234,8 +288,10 @@ async function configureStations() {
         let fm = FileManager.local();
         let path = fm.joinPath(fm.documentsDirectory(), "gotransit-config.json");
         let config = {
-            departure: stations[departureIndex],
-            arrival: stations[arrivalIndex],
+            departure: departureStations[departureStationIndex],
+            arrival: arrivalStations[arrivalStationIndex],
+            departureLine: departureLineName,
+            arrivalLine: arrivalLineName,
             travelMode: travelMode,
             pageLimit: tripNumArray[tripNumIndex],
             showReturnTrips: returnTripsIndex === 0,
@@ -247,8 +303,10 @@ async function configureStations() {
         // Show confirmation
         let confirmAlert = new Alert();
         confirmAlert.title = "Settings Saved";
-        confirmAlert.message = `Departure: ${config.departure}
-        Arrival: ${config.arrival}
+        confirmAlert.message = `Departure Line: ${config.departureLine}
+        Departure Station: ${config.departure}
+        Arrival Line: ${config.arrivalLine}
+        Arrival Station: ${config.arrival}
         Travel Mode: ${config.travelMode}
         Number of Trips: ${config.pageLimit}
         Show Return Trips: ${config.showReturnTrips ? "Yes" : "No"}
