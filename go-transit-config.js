@@ -1,5 +1,5 @@
 // Configuration script
-let STOUFFVILLE_LINE = ["Union Station GO", "Kennedy GO", "Agincourt GO", "Miliken GO", "Unionville", "Centennial GO", "Markham GO", "Mount Joy GO", "Stouffville GO", "Old Elm GO"];
+let STOUFFVILLE_LINE = ["Union Station GO", "Kennedy GO", "Agincourt GO", "Miliken GO", "Unionville GO", "Centennial GO", "Markham GO", "Mount Joy GO", "Stouffville GO", "Old Elm GO"];
 let RICHMOND_HILL_LINE = ["Union Station GO", "Oriole GO", "Old Cummer GO", "Langstaff GO", "Richmond Hill GO", "Gormley GO", "Bloomington GO"];
 let BARRIE_LINE = ["Union Station GO", "Downsview Park GO", "Rutherford GO", "Maple GO", "King City GO", "Aurora GO", "Newmarket GO", "East Gwillimbury GO", "Bradford GO", "Barrie South GO", "Allandale Waterfront GO"];
 let KITCHENER_LINE = ["Union Station GO", "Bloor GO", "Weston GO", "Etobicoke North GO", "Malton GO", "Bramalea GO", "Brampton Innovation GO", "Mount Pleasant GO", "Georgetown GO", "Acton GO", "Guelph Central GO", "Kitchener GO"];
