@@ -3,12 +3,19 @@
 // icon-color: red; icon-glyph: magic;
 // AA00ED98YD
 
-// Get widget size
+// Get widget size and ID
 let widgetSize = config.widgetFamily || "medium";
+let widgetID = config.widgetID || "default";
+
 async function getTripPlans() {
-    // Load config from local file
+    // Load config from local file based on widget ID
     let fm = FileManager.local();
-    let path = fm.joinPath(fm.documentsDirectory(), "gotransit-config.json");
+    let basePath = fm.documentsDirectory();
+    
+    // Create separate config files for each widget
+    let configPath = fm.joinPath(basePath, `gotransit-config-${widgetID}.json`);
+    let fallbackPath = fm.joinPath(basePath, "gotransit-config.json");
+    
     let departure, arrival;
     let showReturnTrips = false;
     let showTransfers = true;
@@ -23,18 +30,32 @@ async function getTripPlans() {
         stationDetails: "#707070"
     };
 
-    if (fm.fileExists(path)) {
-        let config = JSON.parse(fm.readString(path));
+    // Try to load widget-specific config first, then fallback to default
+    let configLoaded = false;
+    if (fm.fileExists(configPath)) {
+        let config = JSON.parse(fm.readString(configPath));
         departure = config.departure;
         arrival = config.arrival;
         showReturnTrips = config.showReturnTrips ?? false;
         showTransfers = config.showTransfers ?? true;
         tripLimit = config.pageLimit || 6;
         colors = config.colors || colors;
+        configLoaded = true;
+        console.log(`Loaded config for widget ${widgetID}`);
+    } else if (fm.fileExists(fallbackPath)) {
+        let config = JSON.parse(fm.readString(fallbackPath));
+        departure = config.departure;
+        arrival = config.arrival;
+        showReturnTrips = config.showReturnTrips ?? false;
+        showTransfers = config.showTransfers ?? true;
+        tripLimit = config.pageLimit || 6;
+        colors = config.colors || colors;
+        console.log(`Using fallback config for widget ${widgetID}`);
     } else {
         // Default stations
         departure = "Union Station GO";
         arrival = "Unionville GO";
+        console.log(`Using default config for widget ${widgetID}`);
     }
     
     // Adjust trip limits based on widget size
@@ -58,8 +79,8 @@ async function getTripPlans() {
     }   
 
     // First fetch trips with configured limit
-    let outboundTrips = await fetchTripPlans(departureID, arrivalID, tripLimit);
-    let returnTrips = showReturnTrips ? await fetchTripPlans(arrivalID, departureID, tripLimit) : [];
+    let outboundTrips = await fetchTripPlans(departureID, arrivalID, tripLimit, widgetID);
+    let returnTrips = showReturnTrips ? await fetchTripPlans(arrivalID, departureID, tripLimit, widgetID) : [];
 
     // Filter trips based on transfer preference
     if (!showTransfers) {
@@ -284,7 +305,7 @@ async function fetchTripPointID(stationName) {
     return response.results?.[0]?.hits?.[0]?.ID_TRIPPOINT || null;
 }
 
-async function fetchTripPlans(departureID, arrivalID, defaultPageLimit = 2) {
+async function fetchTripPlans(departureID, arrivalID, defaultPageLimit = 2, widgetID = "default") {
     // Get current time and subtract 30 minutes
     let date = new Date();
     date.setMinutes(date.getMinutes() - 30);
@@ -296,14 +317,21 @@ async function fetchTripPlans(departureID, arrivalID, defaultPageLimit = 2) {
         String(date.getHours()).padStart(2, '0')}-${
         String(date.getMinutes()).padStart(2, '0')}`;
     
-    // Load travel mode and other settings from config
+    // Load travel mode and other settings from widget-specific config
     let fm = FileManager.local();
-    let path = fm.joinPath(fm.documentsDirectory(), "gotransit-config.json");
+    let basePath = fm.documentsDirectory();
+    let configPath = fm.joinPath(basePath, `gotransit-config-${widgetID}.json`);
+    let fallbackPath = fm.joinPath(basePath, "gotransit-config.json");
+    
     let travelMode = "All";
     let pageLimit = defaultPageLimit;
 
-    if (fm.fileExists(path)) {
-        let config = JSON.parse(fm.readString(path));
+    if (fm.fileExists(configPath)) {
+        let config = JSON.parse(fm.readString(configPath));
+        travelMode = config.travelMode || "All";
+        pageLimit = config.pageLimit || defaultPageLimit;
+    } else if (fm.fileExists(fallbackPath)) {
+        let config = JSON.parse(fm.readString(fallbackPath));
         travelMode = config.travelMode || "All";
         pageLimit = config.pageLimit || defaultPageLimit;
     }
@@ -317,7 +345,7 @@ async function fetchTripPlans(departureID, arrivalID, defaultPageLimit = 2) {
         url += `&PreferredTravelMode=${travelMode}`;
     }
     
-    console.log(url);
+    console.log(`Widget ${widgetID}: ${url}`);
     let req = new Request(url);
     let response = await req.loadJSON();
     return response.Trips?.items || [];
