@@ -3,6 +3,18 @@
 // icon-color: red; icon-glyph: magic;
 // AA00ED98YD
 
+// Color scheme configuration
+let colors = {
+    title: "#000000",
+    stationInfo: "#0066CC",      // Blue for station info
+    timeText: "#333333",         // Dark gray for time
+    duration: "#666666",         // Gray for duration
+    transferRoute: "#FF6B00",    // Orange for transfer routes
+    directRoute: "#008E44",      // Green for direct routes
+    stationDetails: "#707070",   // Light gray for station details
+    separator: "#CCCCCC"         // Light gray for separators
+};
+
 // Get widget size
 let widgetSize = config.widgetFamily || "medium";
 async function getTripPlans() {
@@ -13,15 +25,6 @@ async function getTripPlans() {
     let showReturnTrips = false;
     let showTransfers = true;
     let tripLimit = 6;
-    let colors = {
-        title: "#000000",
-        stationInfo: "#0066CC",
-        timeText: "#333333",
-        duration: "#666666",
-        transferRoute: "#FF6B00",
-        directRoute: "#008E44",
-        stationDetails: "#707070"
-    };
 
     if (fm.fileExists(path)) {
         let config = JSON.parse(fm.readString(path));
@@ -30,7 +33,10 @@ async function getTripPlans() {
         showReturnTrips = config.showReturnTrips ?? false;
         showTransfers = config.showTransfers ?? true;
         tripLimit = config.pageLimit || 6;
-        colors = config.colors || colors;
+        // Load custom colors if available
+        if (config.colors) {
+            colors = { ...colors, ...config.colors };
+        }
     } else {
         // Default stations
         departure = "Union Station GO";
@@ -84,119 +90,45 @@ async function getTripPlans() {
     titleText.font = Font.boldSystemFont(16);
     titleText.textColor = new Color(colors.title);
 
-    displayTripPlans(widget, outboundTrips, departure, arrival, colors, maxDirectTrips, maxTransferTrips);
+    displayTripPlans(widget, outboundTrips, departure, arrival, maxDirectTrips, maxTransferTrips);
     
     if (showReturnTrips && returnTrips.length > 0) {
         widget.addSpacer(5);
-        displayTripPlans(widget, returnTrips, arrival, departure, colors, maxDirectTrips, maxTransferTrips);
+        displayTripPlans(widget, returnTrips, arrival, departure, maxDirectTrips, maxTransferTrips);
     }
     Script.setWidget(widget);
     Script.complete();
 }
 
-async function displayTripPlans(widget, tripPlans, departure, arrival, colors, maxDirectTrips = 2, maxTransferTrips = 0) {
+async function displayTripPlans(widget, tripPlans, departure, arrival, maxDirectTrips = 2, maxTransferTrips = 0) {
 
     let titleStack = widget.addStack();
     titleStack.layoutVertically();
     
-    // Separate direct and transfer trips
-    let directTrips = tripPlans.filter(trip => trip.sectionDetails.SectionDetail.length === 1);
-    let transferTrips = tripPlans.filter(trip => trip.sectionDetails.SectionDetail.length > 1);
-    
-    // Sort trips by departure time within each category
-    directTrips.sort((a, b) => {
-        const aTime = new Date(a.DepartureDateTime);
-        const bTime = new Date(b.DepartureDateTime);
-        return aTime - bTime;
-    });
-    
-    transferTrips.sort((a, b) => {
-        const aTime = new Date(a.DepartureDateTime);
-        const bTime = new Date(b.DepartureDateTime);
-        return aTime - bTime;
-    });
-    
-    // Limit trips based on widget size
-    directTrips = directTrips.slice(0, maxDirectTrips);
-    transferTrips = transferTrips.slice(0, maxTransferTrips);
-    
-    // Display station info with trip type information
-    let stationInfoText = `${departure} → ${arrival}`;
-    if (directTrips.length > 0 && transferTrips.length > 0) {
-        stationInfoText += ` (${directTrips.length} Direct, ${transferTrips.length} Transfer)`;
-    } else if (directTrips.length > 0) {
-        stationInfoText += ` (${directTrips.length} Direct)`;
-    } else if (transferTrips.length > 0) {
-        stationInfoText += ` (${transferTrips.length} Transfer)`;
-    }
-    
-    let stationInfo = titleStack.addText(stationInfoText);
+    let stationInfo = titleStack.addText(`${departure} → ${arrival}`);
     stationInfo.font = Font.systemFont(14);
     stationInfo.textColor = new Color(colors.stationInfo);
 
     widget.addSpacer(5);
 
-    // Display direct trips first
-    if (directTrips.length > 0) {
-        if (transferTrips.length > 0) {
-            let directHeader = widget.addText("🚂 Direct Trips:");
-            directHeader.font = Font.boldSystemFont(12);
-            directHeader.textColor = new Color(colors.directRoute);
-            widget.addSpacer(3);
-        }
-        
-        directTrips.forEach((trip, index) => {
-            let tripStack = widget.addStack();
-            tripStack.layoutVertically();
+    if (tripPlans.length > 0) {
+        // Sort trips: direct trips first, then by departure time
+        tripPlans.sort((a, b) => {
+            const aIsDirect = a.sectionDetails.SectionDetail.length === 1;
+            const bIsDirect = b.sectionDetails.SectionDetail.length === 1;
             
-            // Basic information
-            const departureTime = trip.DepartureTimeDisplay;
-            const arrivalTime = trip.ArrivalTimeDisplay;
-            const duration = trip.Duration;
-            
-            // Add stack for time and duration information
-            let timeStack = tripStack.addStack();
-            timeStack.centerAlignContent();
-            
-            let timeText = timeStack.addText(`${departureTime} → ${arrivalTime}`);
-            timeText.font = Font.boldSystemFont(13);
-            timeText.textColor = new Color(colors.timeText);
-            timeStack.addSpacer(5);
-            let durationText = timeStack.addText(`(Duration: ${duration})`);
-            durationText.font = Font.systemFont(12);
-            durationText.textColor = new Color(colors.duration);
-            
-            // For direct trips, show simplified information
-            const section = trip.sectionDetails.SectionDetail[0];
-            const transitType = section.TransitType === 1 ? "🚂" : "🚌";
-            let routeInfo = `${transitType} ${section.LineNumber} (${section.TripNumber})`;
-            let routeText = tripStack.addText(routeInfo);
-            routeText.font = Font.systemFont(11);
-            routeText.textColor = new Color(colors.directRoute);
-            
-            // If not the last direct trip, add separator line
-            if (index < directTrips.length - 1) {
-                widget.addSpacer(3);
-                let separator = widget.addStack();
-                separator.backgroundColor = new Color(colors.stationDetails);
-                separator.size = new Size(320, 1);
-                widget.addSpacer(3);
+            // If direct status is different, direct trips first
+            if (aIsDirect !== bIsDirect) {
+                return aIsDirect ? -1 : 1;
             }
+            
+            // If direct status is the same, sort by departure time
+            const aTime = new Date(a.DepartureDateTime);
+            const bTime = new Date(b.DepartureDateTime);
+            return aTime - bTime;
         });
-    }
-    
-    // Display transfer trips if any
-    if (transferTrips.length > 0) {
-        if (directTrips.length > 0) {
-            widget.addSpacer(5);
-        }
-        
-        let transferHeader = widget.addText("🔄 Transfer Trips:");
-        transferHeader.font = Font.boldSystemFont(12);
-        transferHeader.textColor = new Color(colors.transferRoute);
-        widget.addSpacer(3);
-        
-        transferTrips.forEach((trip, index) => {
+
+        tripPlans.forEach((trip, index) => {
             let tripStack = widget.addStack();
             tripStack.layoutVertically();
             
@@ -217,46 +149,59 @@ async function displayTripPlans(widget, tripPlans, departure, arrival, colors, m
             durationText.font = Font.systemFont(12);
             durationText.textColor = new Color(colors.duration);
             
-            // Show transfer details
+            // Get all section information
             const sections = trip.sectionDetails.SectionDetail;
-            sections.forEach((section, sectionIndex) => {
-                const transitType = section.TransitType === 1 ? "🚂" : "🚌";
-                let sectionStack = tripStack.addStack();
-                sectionStack.layoutVertically();
-                
-                let routeInfo = `${transitType} ${section.LineNumber} (${section.TripNumber})`;
-                let routeText = sectionStack.addText(routeInfo);
-                routeText.font = Font.systemFont(11);
-                routeText.textColor = new Color(colors.transferRoute);
+            const hasTransfers = sections.length > 1;
+            
+            if (hasTransfers) {
+                sections.forEach((section, sectionIndex) => {
+                    const transitType = section.TransitType === 1 ? "🚂 (Train)" : "🚌 (Bus)";
+                    let sectionStack = tripStack.addStack();
+                    sectionStack.layoutVertically();
+                    
+                    let routeInfo = `${transitType} ${section.LineNumber} (${section.TripNumber}) - Transfers`;
+                    let routeText = sectionStack.addText(routeInfo);
+                    routeText.font = Font.systemFont(11);
+                    routeText.textColor = new Color(colors.transferRoute);
 
-                let stationInfo = `${section.DepartureStopName} (${section.DepartureTime.split(' ')[1]})`;
-                stationInfo += ` → ${section.ArrivalStopName} (${section.ArrivalTime.split(' ')[1]})`;
-                let stationText = sectionStack.addText(stationInfo);
+                    let stationInfo = `${section.DepartureStopName} (${section.DepartureTime.split(' ')[1]})`;
+                    stationInfo += ` → ${section.ArrivalStopName} (${section.ArrivalTime.split(' ')[1]})`;
+                    let stationText = sectionStack.addText(stationInfo);
+                    stationText.font = Font.systemFont(10);
+                    stationText.textColor = new Color(colors.stationDetails);
+                    
+                    if (sectionIndex < sections.length - 1) {
+                        let transferStack = tripStack.addStack();
+                        transferStack.centerAlignContent();
+                        let transferText = transferStack.addText("⬇ Transfer ⬇");
+                        transferText.font = Font.systemFont(10);
+                        transferText.textColor = new Color(colors.transferRoute);
+                    }
+                });
+            } else {
+                const section = sections[0];
+                const transitType = section.TransitType === 1 ? "🚂 (Train)" : "🚌 (Bus)";
+                let routeInfo = `${transitType} ${section.LineNumber} (${section.TripNumber}) - Direct Trip`;
+                let routeText = tripStack.addText(routeInfo);
+                routeText.font = Font.systemFont(11);
+                routeText.textColor = new Color(colors.directRoute);
+                
+                let stationInfo = `${section.DepartureStopName} → ${section.ArrivalStopName}`;
+                let stationText = tripStack.addText(stationInfo);
                 stationText.font = Font.systemFont(10);
                 stationText.textColor = new Color(colors.stationDetails);
-                
-                if (sectionIndex < sections.length - 1) {
-                    let transferStack = tripStack.addStack();
-                    transferStack.centerAlignContent();
-                    let transferText = transferStack.addText("⬇ Transfer ⬇");
-                    transferText.font = Font.systemFont(10);
-                    transferText.textColor = new Color(colors.transferRoute);
-                }
-            });
+            }
             
-            // If not the last transfer trip, add separator line
-            if (index < transferTrips.length - 1) {
-                widget.addSpacer(3);
+            // If not the last trip, add separator line
+            if (index < tripPlans.length - 1) {
+                widget.addSpacer(5);
                 let separator = widget.addStack();
-                separator.backgroundColor = new Color(colors.stationDetails);
+                separator.backgroundColor = new Color(colors.separator);
                 separator.size = new Size(320, 1);
-                widget.addSpacer(3);
+                widget.addSpacer(5);
             }
         });
-    }
-    
-    // Show message if no trips found
-    if (directTrips.length === 0 && transferTrips.length === 0) {
+    } else {
         widget.addText("No Trip Found.").font = Font.systemFont(12);
     }
 }
