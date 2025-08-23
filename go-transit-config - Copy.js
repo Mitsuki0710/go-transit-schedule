@@ -49,15 +49,11 @@ async function selectRouteType() {
     alert.addAction("Commute Route");
     alert.addAction("Home Route");
     alert.addAction("Friend Route");
-    alert.addAction("Shopping Route");
     alert.addAction("Travel Route");
-    alert.addAction("Hospital Route");
-    alert.addAction("School Route");
-    alert.addAction("Airport Route");
     alert.addAction("Custom Route");
     alert.addCancelAction("Cancel");
     
-    let routeType = await alert.presentAlertSheet();
+    let routeType = await alert.presentSheet();
     
     if (routeType === 8) { // Custom route
         let customAlert = new Alert();
@@ -80,7 +76,7 @@ async function selectRouteType() {
         }
         return null;
     } else if (routeType >= 0 && routeType <= 7) {
-        const routeNames = ["Commute", "Home", "Friend", "Shopping", "Travel", "Hospital", "School", "Airport"];
+        const routeNames = ["Commute", "Home", "Friend", "Travel"];
         const routeName = routeNames[routeType] + " Route";
         return {
             type: "preset",
@@ -172,6 +168,7 @@ async function customizeColors() {
 async function configureStations() {
     try {
         // First, select route type
+        console.log("Route type selection started");
         let routeInfo = await selectRouteType();
         if (!routeInfo) {
             console.log("Route type selection cancelled");
@@ -346,6 +343,7 @@ async function configureStations() {
         // Save configuration with route-specific filename
         let fm = FileManager.local();
         let configPath = fm.joinPath(fm.documentsDirectory(), routeInfo.filename);
+        console.log("Config path: " + configPath);
         let config = {
             departure: departureStations[departureStationIndex],
             arrival: arrivalStations[arrivalStationIndex],
