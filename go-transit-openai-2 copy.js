@@ -18,16 +18,68 @@ let colors = {
 // Get widget size
 let widgetSize = config.widgetFamily || "medium";
 
-async function getTripPlans() {
-    // Load config from local file
+async function selectConfigFile() {
     let fm = FileManager.local();
-    let path = fm.joinPath(fm.documentsDirectory(), "gotransit-config.json");
+    let documentsDir = fm.documentsDirectory();
+    
+    // Get all JSON files in documents directory
+    let files = fm.listContents(documentsDir);
+    let configFiles = files.filter(file => 
+        file.toLowerCase().includes('gotransit') && 
+        file.toLowerCase().endsWith('.json')
+    );
+    
+    if (configFiles.length === 0) {
+        // No config files found, create default
+        let defaultConfig = {
+            departure: "Union Station GO",
+            arrival: "Unionville GO",
+            showTransfers: false,
+            travelMode: "All",
+            pageLimit: 6
+        };
+        
+        let defaultPath = fm.joinPath(documentsDir, "gotransit-config.json");
+        fm.writeString(defaultPath, JSON.stringify(defaultConfig, null, 2));
+        return defaultPath;
+    }
+    
+    if (configFiles.length === 1) {
+        // Only one config file, use it
+        return fm.joinPath(documentsDir, configFiles[0]);
+    }
+    
+    // Multiple config files, ask user to select
+    let alert = new Alert();
+    alert.title = "选择配置文件";
+    alert.message = "发现多个 Go Transit 配置文件，请选择一个：";
+    
+    configFiles.forEach(file => {
+        alert.addAction(file);
+    });
+    
+    alert.addCancelAction("取消");
+    
+    let selectedIndex = await alert.presentAlert();
+    
+    if (selectedIndex === -1) {
+        // User cancelled, use first file
+        return fm.joinPath(documentsDir, configFiles[0]);
+    }
+    
+    return fm.joinPath(documentsDir, configFiles[selectedIndex]);
+}
+
+async function getTripPlans() {
+    // Load config from selected file
+    let fm = FileManager.local();
+    let configPath = await selectConfigFile();
     let departure, arrival;
     let showTransfers = false;  // Default to false, user can enable
     let tripLimit = 6;  // Always fetch 6 trips
 
-    if (fm.fileExists(path)) {
-        let config = JSON.parse(fm.readString(path));
+    if (fm.fileExists(configPath)) {
+        let config = JSON.parse(fm.readString(configPath));
         departure = config.departure;
         arrival = config.arrival;
         showTransfers = config.showTransfers ?? false;  // Load from config, default false
@@ -250,12 +302,12 @@ async function fetchTripPlans(departureID, arrivalID, defaultPageLimit = 2) {
     
     // Load travel mode and other settings from config
     let fm = FileManager.local();
-    let path = fm.joinPath(fm.documentsDirectory(), "gotransit-config.json");
+    let configPath = await selectConfigFile();
     let travelMode = "All";
     let pageLimit = defaultPageLimit;
 
-    if (fm.fileExists(path)) {
-        let config = JSON.parse(fm.readString(path));
+    if (fm.fileExists(configPath)) {
+        let config = JSON.parse(fm.readString(configPath));
         travelMode = config.travelMode || "All";
         pageLimit = config.pageLimit || defaultPageLimit;
     }

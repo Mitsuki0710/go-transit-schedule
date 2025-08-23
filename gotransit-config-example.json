@@ -1,0 +1,17 @@
+{
+  "departure": "Union Station GO",
+  "arrival": "Unionville GO",
+  "showTransfers": false,
+  "travelMode": "All",
+  "pageLimit": 6,
+  "colors": {
+    "title": "#000000",
+    "stationInfo": "#0066CC",
+    "timeText": "#333333",
+    "duration": "#666666",
+    "transferRoute": "#FF6B00",
+    "directRoute": "#008E44",
+    "stationDetails": "#707070",
+    "separator": "#CCCCCC"
+  }
+}

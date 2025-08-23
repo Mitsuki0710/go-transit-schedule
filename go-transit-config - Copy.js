@@ -255,21 +255,6 @@ async function configureStations() {
             }
         }
 
-        // Select whether to show return trips
-        let returnTripsIndex;
-        while (returnTripsIndex === undefined) {
-            let returnTripsAlert = new Alert();
-            returnTripsAlert.title = "Show Return Trips";
-            returnTripsAlert.message = "Do you want to show return trips?";
-            returnTripsAlert.addAction("Yes");
-            returnTripsAlert.addAction("No");
-            returnTripsAlert.addCancelAction("Cancel");
-            returnTripsIndex = await returnTripsAlert.presentSheet();
-            if (returnTripsIndex === -1) {
-                return;
-            }
-        }
-
         // Select whether to show transfer trips
         let transfersIndex;
         while (transfersIndex === undefined) {
@@ -281,21 +266,6 @@ async function configureStations() {
             transfersAlert.addCancelAction("Cancel");
             transfersIndex = await transfersAlert.presentSheet();
             if (transfersIndex === -1) {
-                return;
-            }
-        }
-        
-        // Select number of trips to show
-        const tripNumArray = [2, 3, 4];
-        let tripNumIndex;
-        while (tripNumIndex === undefined) {
-            let tripNumAlert = new Alert();
-            tripNumAlert.title = "Number of Trips to Show";
-            tripNumAlert.message = "Please select the number of trips";
-            tripNumArray.forEach(num => tripNumAlert.addAction(num.toString()));
-            tripNumAlert.addCancelAction("Cancel");
-            tripNumIndex = await tripNumAlert.presentSheet();
-            if (tripNumIndex === -1) {
                 return;
             }
         }
