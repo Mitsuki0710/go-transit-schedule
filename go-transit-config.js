@@ -40,6 +40,58 @@ const colorSchemes = {
     }
 };
 
+// Route type selection function
+async function selectRouteType() {
+    let alert = new Alert();
+    alert.title = "Select Route Type";
+    alert.message = "Please select your route type, or customize a route name";
+    
+    alert.addAction("Commute Route");
+    alert.addAction("Home Route");
+    alert.addAction("Friend Route");
+    alert.addAction("Shopping Route");
+    alert.addAction("Travel Route");
+    alert.addAction("Hospital Route");
+    alert.addAction("School Route");
+    alert.addAction("Airport Route");
+    alert.addAction("Custom Route");
+    alert.addCancelAction("Cancel");
+    
+    let routeType = await alert.presentAlertSheet();
+    
+    if (routeType === 8) { // Custom route
+        let customAlert = new Alert();
+        customAlert.title = "Custom Route Name";
+        customAlert.message = "Please enter your route name (e.g., Gym, Library, etc.)";
+        customAlert.addTextField("Route Name", "");
+        customAlert.addAction("OK");
+        customAlert.addCancelAction("Cancel");
+        
+        let customResult = await customAlert.presentAlert();
+        if (customResult === 0) {
+            let customName = customAlert.textFieldValue(0);
+            if (customName && customName.trim() !== "") {
+                return {
+                    type: "custom",
+                    name: customName.trim() + " Route",
+                    filename: "gotransit-config-" + customName.trim() + "-route.json"
+                };
+            }
+        }
+        return null;
+    } else if (routeType >= 0 && routeType <= 7) {
+        const routeNames = ["Commute", "Home", "Friend", "Shopping", "Travel", "Hospital", "School", "Airport"];
+        const routeName = routeNames[routeType] + " Route";
+        return {
+            type: "preset",
+            name: routeName,
+            filename: "gotransit-config-" + routeNames[routeType] + "-route.json"
+        };
+    }
+    
+    return null;
+}
+
 async function customizeColors() {
     const colorTypes = {
         title: "Title",
@@ -119,6 +171,13 @@ async function customizeColors() {
 
 async function configureStations() {
     try {
+        // First, select route type
+        let routeInfo = await selectRouteType();
+        if (!routeInfo) {
+            console.log("Route type selection cancelled");
+            return;
+        }
+        
         // Select departure line first
         let departureLineIndex;
         while (departureLineIndex === undefined) {
@@ -284,9 +343,9 @@ async function configureStations() {
             selectedColors = await customizeColors();
         }
 
-        // Save configuration
+        // Save configuration with route-specific filename
         let fm = FileManager.local();
-        let path = fm.joinPath(fm.documentsDirectory(), "gotransit-config.json");
+        let configPath = fm.joinPath(fm.documentsDirectory(), routeInfo.filename);
         let config = {
             departure: departureStations[departureStationIndex],
             arrival: arrivalStations[arrivalStationIndex],
@@ -296,21 +355,24 @@ async function configureStations() {
             pageLimit: tripNumArray[tripNumIndex],
             showReturnTrips: returnTripsIndex === 0,
             showTransfers: transfersIndex === 0,
+            routeType: routeInfo.name,
             colors: selectedColors
         };
-        fm.writeString(path, JSON.stringify(config));
+        fm.writeString(configPath, JSON.stringify(config, null, 2));
         
         // Show confirmation
         let confirmAlert = new Alert();
-        confirmAlert.title = "Settings Saved";
-        confirmAlert.message = `Departure Line: ${config.departureLine}
-        Departure Station: ${config.departure}
-        Arrival Line: ${config.arrivalLine}
-        Arrival Station: ${config.arrival}
-        Travel Mode: ${config.travelMode}
-        Number of Trips: ${config.pageLimit}
-        Show Return Trips: ${config.showReturnTrips ? "Yes" : "No"}
-        Show Transfers: ${config.showTransfers ? "Yes" : "No"}`;
+        confirmAlert.title = "Configuration Saved";
+        confirmAlert.message = `Route Type: ${routeInfo.name}
+Config File: ${routeInfo.filename}
+Departure Line: ${config.departureLine}
+Departure Station: ${config.departure}
+Arrival Line: ${config.arrivalLine}
+Arrival Station: ${config.arrival}
+Travel Mode: ${config.travelMode}
+Number of Trips: ${config.pageLimit}
+Show Return Trips: ${config.showReturnTrips ? "Yes" : "No"}
+Show Transfers: ${config.showTransfers ? "Yes" : "No"}`;
         confirmAlert.addAction("OK");
         await confirmAlert.presentAlert();
         
