@@ -72,7 +72,8 @@ async function getTripPlans() {
     }
 
     let outboundTrips = await sortTrips(allTrips);
-    
+    console.log("outboundTrips before filter out transfer trips");
+    console.log(outboundTrips);
     // Filter trips based on transfer preference
     if (!showTransfers) {
         outboundTrips = outboundTrips.filter(trip => trip.sectionDetails.SectionDetail.length === 1);
@@ -82,6 +83,8 @@ async function getTripPlans() {
         tripLimit = hasTransferTrips ? tripLimit - 1 : tripLimit;
         outboundTrips = outboundTrips.slice(0, tripLimit);
     }
+    console.log("outboundTrips after filter out transfer trips");
+    console.log(outboundTrips);
 
     let widget = new ListWidget();
     
@@ -266,6 +269,7 @@ async function fetchTripPlans(departureID, arrivalID, defaultPageLimit = 2) {
     console.log(url);
     let req = new Request(url);
     let response = await req.loadJSON();
+    console.log(response.Trips.items);
     return response.Trips?.items || [];
 }
 
