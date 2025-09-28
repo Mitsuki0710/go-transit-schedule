@@ -208,21 +208,6 @@ async function configureStations() {
             }
         }
 
-        // Select whether to show transfer trips
-        let transfersIndex;
-        while (transfersIndex === undefined) {
-            let transfersAlert = new Alert();
-            transfersAlert.title = "Show Transfer Trips";
-            transfersAlert.message = "Do you want to show trips with transfers?";
-            transfersAlert.addAction("Yes");
-            transfersAlert.addAction("No");
-            transfersAlert.addCancelAction("Cancel");
-            transfersIndex = await transfersAlert.presentSheet();
-            if (transfersIndex === -1) {
-                return;
-            }
-        }
-
         // Convert mode selection to API parameter
         let travelMode;
         switch(modeIndex) {
@@ -272,7 +257,6 @@ async function configureStations() {
             departureLine: departureLineName,
             arrivalLine: arrivalLineName,
             travelMode: travelMode,
-            showTransfers: transfersIndex === 0,
             routeType: routeInfo.name,
             colors: selectedColors
         };
@@ -286,8 +270,7 @@ async function configureStations() {
             Departure Station: ${config.departure}
             Arrival Line: ${config.arrivalLine}
             Arrival Station: ${config.arrival}
-            Travel Mode: ${config.travelMode}
-            Show Transfers: ${config.showTransfers ? "Yes" : "No"}`;
+            Travel Mode: ${config.travelMode}`;
         confirmAlert.addAction("OK");
         await confirmAlert.presentAlert();
         

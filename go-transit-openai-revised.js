@@ -23,14 +23,12 @@ async function getTripPlans() {
     let fm = FileManager.local();
     let path = fm.joinPath(fm.documentsDirectory(), "gotransit-config-work.json");
     let departure, arrival;
-    let showTransfers = true;
-    let tripLimit = 10; // Increased to ensure enough trips for large widget
+    let tripLimit = 3;
 
     if (fm.fileExists(path)) {
         let config = JSON.parse(fm.readString(path));
         departure = config.departure;
         arrival = config.arrival;
-        showTransfers = config.showTransfers ?? true;
         // Load custom colors if available
         if (config.colors) {
             colors = { ...colors, ...config.colors };
@@ -39,18 +37,6 @@ async function getTripPlans() {
         // Default stations
         departure = "Union Station GO";
         arrival = "Unionville GO";
-    }
-    
-    // Adjust trip limits based on widget size
-    let maxDirectTrips, maxTransferTrips;
-    
-    if (widgetSize === "large") {
-        maxDirectTrips = 5;
-        maxTransferTrips = 1;
-    } else {
-        // medium or small
-        maxDirectTrips = 2;
-        maxTransferTrips = 0;
     }
     
     let departureID = await fetchTripPointID(departure);
@@ -72,19 +58,12 @@ async function getTripPlans() {
     }
 
     let outboundTrips = await sortTrips(allTrips);
-    console.log("outboundTrips before filter out transfer trips");
-    console.log(outboundTrips);
-    // Filter trips based on transfer preference
-    if (!showTransfers) {
+    
+    // Filter trips based on widget size
+    if (widgetSize !== "large") {
+        // For medium and small widgets, filter out transfer trips to show only direct trips
         outboundTrips = outboundTrips.filter(trip => trip.sectionDetails.SectionDetail.length === 1);
-    } else {
-         // Adjust trip limit based on transfer availability
-        const hasTransferTrips = outboundTrips.some(trip => trip.sectionDetails.SectionDetail.length > 1);
-        tripLimit = hasTransferTrips ? tripLimit - 1 : tripLimit;
-        outboundTrips = outboundTrips.slice(0, tripLimit);
     }
-    console.log("outboundTrips after filter out transfer trips");
-    console.log(outboundTrips);
 
     let widget = new ListWidget();
     
@@ -92,13 +71,13 @@ async function getTripPlans() {
     titleText.font = Font.boldSystemFont(16);
     titleText.textColor = new Color(colors.title);
 
-    displayTripPlans(widget, outboundTrips, departure, arrival, maxDirectTrips, maxTransferTrips);
+    displayTripPlans(widget, outboundTrips, departure, arrival);
     
     Script.setWidget(widget);
     Script.complete();
 }
 
-async function displayTripPlans(widget, tripPlans, departure, arrival, maxDirectTrips = 2, maxTransferTrips = 0) {
+async function displayTripPlans(widget, tripPlans, departure, arrival) {
 
     let titleStack = widget.addStack();
     titleStack.layoutVertically();
@@ -115,27 +94,10 @@ async function displayTripPlans(widget, tripPlans, departure, arrival, maxDirect
     for (let index = 0; index < tripPlans.length; index++) {
         const trip = tripPlans[index];
         
-        // Check if we've reached the limit
-        if (maxDirectTrips === 0 && maxTransferTrips === 0) {
-            break;
-        }
-        
         // Get all section information
         const sections = trip.sectionDetails.SectionDetail;
         const hasTransfers = sections.length > 1;
         
-        // Skip if we've reached the limit for this type
-        if (hasTransfers && maxTransferTrips === 0) {
-            continue;
-        }
-        if (!hasTransfers && maxDirectTrips === 0) {
-            continue;
-        }
-        
-        // Check if this will be the last trip to display
-        isLastTrip = (hasTransfers && maxTransferTrips === 1 && maxDirectTrips === 0) ||
-                     (!hasTransfers && maxDirectTrips === 1 && maxTransferTrips === 0) ||
-                     index === tripPlans.length - 1;
         
         let tripStack = widget.addStack();
         tripStack.layoutVertically();
@@ -157,6 +119,7 @@ async function displayTripPlans(widget, tripPlans, departure, arrival, maxDirect
         durationText.font = Font.systemFont(12);
         durationText.textColor = new Color(colors.duration);
         
+        // transfer trips can only be shown if the widget size is large
         if (hasTransfers) {
             sections.forEach((section, sectionIndex) => {
                 const transitType = section.TransitType === 1 ? "🚂 (Train)" : "🚌 (Bus)";
@@ -182,7 +145,6 @@ async function displayTripPlans(widget, tripPlans, departure, arrival, maxDirect
                     transferText.textColor = new Color(colors.transferRoute);
                 }
             });
-            maxTransferTrips--;
         } else {
             const section = sections[0];
             const transitType = section.TransitType === 1 ? "🚂 (Train)" : "🚌 (Bus)";
@@ -195,13 +157,12 @@ async function displayTripPlans(widget, tripPlans, departure, arrival, maxDirect
             let stationText = tripStack.addText(stationInfo);
             stationText.font = Font.systemFont(10);
             stationText.textColor = new Color(colors.stationDetails);
-            maxDirectTrips--;
         }
         
         displayedTrips++;
         
         // If not the last trip, add separator line
-        if (!isLastTrip) {
+        if (index !== tripPlans.length - 1) {
             widget.addSpacer(5);
             let separator = widget.addStack();
             separator.backgroundColor = new Color(colors.separator);
@@ -234,7 +195,7 @@ async function fetchTripPointID(stationName) {
     return response.results?.[0]?.hits?.[0]?.ID_TRIPPOINT || null;
 }
 
-async function fetchTripPlans(departureID, arrivalID, defaultPageLimit = 2) {
+async function fetchTripPlans(departureID, arrivalID, defaultPageLimit = 3) {
     // Get current time and subtract 30 minutes
     let date = new Date();
     date.setMinutes(date.getMinutes() - 30);
@@ -269,7 +230,7 @@ async function fetchTripPlans(departureID, arrivalID, defaultPageLimit = 2) {
     console.log(url);
     let req = new Request(url);
     let response = await req.loadJSON();
-    console.log(response.Trips.items);
+
     return response.Trips?.items || [];
 }
 
