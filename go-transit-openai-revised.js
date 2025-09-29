@@ -17,10 +17,10 @@ const colorSchemes = {
         title: "#FFFFFF",            // White for title
         stationInfo: "#0066CC",      // Blue for station info
         timeText: "#FFFFFF",         // White for time
-        duration: "#666666",         // Gray for duration
+        duration: "#D1D1D1",         // Gray for duration
         transferRoute: "#FF6B00",    // Orange for transfer routes
         directRoute: "#008E44",      // Green for direct routes
-        stationDetails: "#DDDDDD",   // Light gray for station details
+        stationDetails: "#CECECE",   // Light gray for station details
         separator: "#CCCCCC"         // Light gray for separators
     }
 };
@@ -81,6 +81,18 @@ async function getTripPlans() {
     }
 
     let widget = new ListWidget();
+    
+    // Set semi-transparent background
+    let backgroundColor;
+    if (Device.isUsingDarkAppearance()) {
+        // Dark mode: semi-transparent black
+        backgroundColor = new Color("rgba(0,0,0,0.3)")
+    } else {
+        // Light mode: semi-transparent white
+        backgroundColor = new Color("rgba(255,255,255,0.3)");
+    }
+    // widget.backgroundColor = backgroundColor;
+    widget.backgroundColor = backgroundColor;
     
     let titleText = widget.addText("Go Transit Schedules");
     titleText.font = Font.boldSystemFont(16);
