@@ -15,8 +15,33 @@ let colors = {
     separator: "#CCCCCC"         // Light gray for separators
 };
 
+
+const colorSchemes = {
+    light: {
+        title: "#000000",
+        stationInfo: "#0066CC",
+        timeText: "#333333",
+        duration: "#666666",
+        transferRoute: "#FF6B00",        
+        directRoute: "#008E44",
+        stationDetails: "#666666",
+        separator: "#999999"         // Light gray for separators
+    },
+    dark: {
+        title: "#FFFFFF",            // White for title
+        stationInfo: "#0066CC",      // Blue for station info
+        timeText: "#FFFFFF",         // White for time
+        duration: "#666666",         // Gray for duration
+        transferRoute: "#FF6B00",    // Orange for transfer routes
+        directRoute: "#008E44",      // Green for direct routes
+        stationDetails: "#DDDDDD",   // Light gray for station details
+        separator: "#CCCCCC"         // Light gray for separators
+    }
+};
+
 // Get widget size
 let widgetSize = config.widgetFamily || "large";
+
 
 async function getTripPlans() {
     // Load config from local file
@@ -30,9 +55,14 @@ async function getTripPlans() {
         departure = config.departure;
         arrival = config.arrival;
         // Load custom colors if available
-        if (config.colors) {
-            colors = { ...colors, ...config.colors };
+        if (Device.isUsingDarkAppearance()) {
+            colors = { ...colorSchemes.dark };
+        } else {
+            colors = { ...colorSchemes.light };
         }
+        // if (config.colors) {
+        //     colors = { ...colors, ...config.colors };
+        // }
     } else {
         // Default stations
         departure = "Union Station GO";

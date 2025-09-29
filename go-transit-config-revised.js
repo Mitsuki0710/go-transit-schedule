@@ -27,7 +27,8 @@ const colorSchemes = {
         duration: "#666666",
         transferRoute: "#FF6B00",
         directRoute: "#008E44",
-        stationDetails: "#707070"
+        stationDetails: "#707070",
+        separator: "#CCCCCC"         // Light gray for separators
     },
     dark: {
         title: "#FFFFFF",            // White for title
