@@ -42,84 +42,6 @@ const colorSchemes = {
     }
 };
 
-
-async function customizeColors() {
-    const colorTypes = {
-        title: "Title",
-        stationInfo: "Station Info",
-        timeText: "Time Text",
-        duration: "Duration",
-        transferRoute: "Transfer Route",
-        directRoute: "Direct Route",
-        stationDetails: "Station Details"
-    };
-
-    let customColors = {};
-    
-    for (let [key, label] of Object.entries(colorTypes)) {
-        let colorAlert = new Alert();
-        colorAlert.title = `Select ${label} Color`;
-        colorAlert.message = "Please select a preset color or enter a hex color code (e.g., #FF0000)";
-        
-        // Add preset colors
-        const presetColors = {
-            "Black": "#000000",
-            "White": "#FFFFFF",
-            "Dark Blue": "#0066CC",
-            "Light Blue": "#7CB9E8",
-            "Dark Green": "#008E44",
-            "Light Green": "#4CAF50",
-            "Orange": "#FF6B00",
-            "Gray": "#666666"
-        };
-
-        // Add preset color options
-        for (let [colorName, colorValue] of Object.entries(presetColors)) {
-            colorAlert.addAction(colorName);
-        }
-        
-        // Add custom input option
-        colorAlert.addAction("Enter Custom Color");
-        colorAlert.addCancelAction("Cancel");
-        
-        let colorIndex = await colorAlert.presentSheet();
-        
-        if (colorIndex === -1) {
-            return colorSchemes.light; // Return default light theme if cancelled
-        }
-        
-        if (colorIndex < Object.keys(presetColors).length) {
-            // Selected preset color
-            customColors[key] = Object.values(presetColors)[colorIndex];
-        } else {
-            // Custom input
-            let inputAlert = new Alert();
-            inputAlert.title = "Enter Color Code";
-            inputAlert.message = "Please enter a hex color code (e.g., #FF0000)";
-            inputAlert.addTextField("Color Code", "#");
-            inputAlert.addAction("OK");
-            inputAlert.addCancelAction("Cancel");
-            
-            await inputAlert.present();
-            let colorCode = inputAlert.textFieldValue(0);
-            
-            // Validate color code format
-            if (/^#[0-9A-Fa-f]{6}$/.test(colorCode)) {
-                customColors[key] = colorCode;
-            } else {
-                let errorAlert = new Alert();
-                errorAlert.title = "Error";
-                errorAlert.message = "Invalid color code. Using default color instead.";
-                errorAlert.addAction("OK");
-                await errorAlert.presentAlert();
-                customColors[key] = colorSchemes.light[key];
-            }
-        }
-    }
-    
-    return customColors;
-}
-
 async function configureStations() {
     try {
         // Use default route configuration
@@ -222,32 +144,6 @@ async function configureStations() {
                 travelMode = "Bus";
                 break;
         }
-        
-        // Select color theme
-        let themeIndex;
-        while (themeIndex === undefined) {
-            let themeAlert = new Alert();
-            themeAlert.title = "Select Color Theme";
-            themeAlert.message = "Please choose a display mode";
-            themeAlert.addAction("Light Mode");
-            themeAlert.addAction("Dark Mode");
-            themeAlert.addAction("Custom Colors");
-            themeAlert.addCancelAction("Cancel");
-            themeIndex = await themeAlert.presentSheet();
-            if (themeIndex === -1) {
-                return;
-            }
-        }
-
-        let selectedColors;
-        if (themeIndex === 0) {
-            selectedColors = colorSchemes.light;
-        } else if (themeIndex === 1) {
-            selectedColors = colorSchemes.dark;
-        } else {
-            // Custom colors
-            selectedColors = await customizeColors();
-        }
 
         // Save configuration with default filename
         let fm = FileManager.local();
@@ -258,8 +154,7 @@ async function configureStations() {
             departureLine: departureLineName,
             arrivalLine: arrivalLineName,
             travelMode: travelMode,
-            routeType: routeInfo.name,
-            colors: selectedColors
+            routeType: routeInfo.name
         };
         fm.writeString(configPath, JSON.stringify(config, null, 2));
         

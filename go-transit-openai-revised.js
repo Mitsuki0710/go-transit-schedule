@@ -1,20 +1,6 @@
 // Variables used by Scriptable.
 // These must be at the very top of the file. Do not edit.
 // icon-color: red; icon-glyph: magic;
-// AA00ED98YD
-
-// Color scheme configuration
-let colors = {
-    title: "#FFFFFF",            // White for title
-    stationInfo: "#0066CC",      // Blue for station info
-    timeText: "#FFFFFF",         // White for time
-    duration: "#666666",         // Gray for duration
-    transferRoute: "#FF6B00",    // Orange for transfer routes
-    directRoute: "#008E44",      // Green for direct routes
-    stationDetails: "#707070",   // Light gray for station details
-    separator: "#CCCCCC"         // Light gray for separators
-};
-
 
 const colorSchemes = {
     light: {
@@ -41,7 +27,6 @@ const colorSchemes = {
 
 // Get widget size
 let widgetSize = config.widgetFamily || "large";
-
 
 async function getTripPlans() {
     // Load config from local file
