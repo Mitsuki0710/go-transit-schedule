@@ -329,10 +329,10 @@ function addTransitIcon(row, trip, size) {
 function addTransferDetails(widget, trip, isMedium) {
   if (!trip.hasTransfer) return;
 
-  const routeFont = isMedium ? 9 : 10;
-  const stationFont = isMedium ? 8 : 9;
-  const transferFont = isMedium ? 8 : 9;
-  const indent = isMedium ? 23 : 25;
+  const routeFont = 10;
+  const stationFont = 9;
+  const transferFont = 8;
+  const indent = 8;
 
   widget.addSpacer(isMedium ? 2 : 3);
 
