@@ -15,30 +15,27 @@ const widgetFamily = config.widgetFamily
   ? (config.widgetFamily === "large" ? "large" : "medium")
   : "large";
 
-function dc(light, dark) {
-  return Color.dynamic(new Color(light), new Color(dark));
-}
 
 const C = {
-  title: dc("#111111", "#f0f0f0"),
-  date: dc("#555555", "#888888"),
-  depTime: dc("#111111", "#f0f0f0"),
-  depBus: dc("#555555", "#aaaaaa"),
-  duration: dc("#999999", "#666666"),
-  transferRoute: dc("#c06000", "#ff9f0a"),
-  stationDetails: dc("#777777", "#999999"),
-  noSvc: dc("#aaaaaa", "#555555"),
-  footer: dc("#bbbbbb", "#555555"),
-  badgeTxt: dc("#ffffff", "#ffffff"),
-  directBadge: dc("#008E44", "#008E44"),
-  transferBadge: dc("#FF6B00", "#FF6B00"),
-  busBadge: dc("#666666", "#777777"),
-  pillUrgentBg: Color.dynamic(new Color("#ff3b30", 0.15), new Color("#ff3b30", 0.25)),
-  pillSoonBg: Color.dynamic(new Color("#ff9500", 0.15), new Color("#ff9500", 0.25)),
-  pillOkBg: Color.dynamic(new Color("#34c759", 0.12), new Color("#30d158", 0.18)),
-  pillUrgentFg: dc("#d0190c", "#ff453a"),
-  pillSoonFg: dc("#c06000", "#ff9f0a"),
-  pillOkFg: dc("#1a7a32", "#32d74b"),
+  title: new Color("#f0f0f0"),
+  date: new Color("#888888"),
+  depTime: new Color("#f0f0f0"),
+  depBus: new Color("#aaaaaa"),
+  duration: new Color("#666666"),
+  transferRoute: new Color("#ff9f0a"),
+  stationDetails: new Color("#999999"),
+  noSvc: new Color("#555555"),
+  footer: new Color("#555555"),
+  badgeTxt: new Color("#ffffff"),
+  directBadge: new Color("#008E44"),
+  transferBadge: new Color("#FF6B00"),
+  busBadge: new Color("#777777"),
+  pillUrgentBg: new Color("#ff3b30", 0.25),
+  pillSoonBg: new Color("#ff9500", 0.25),
+  pillOkBg: new Color("#30d158", 0.18),
+  pillUrgentFg: new Color("#ff453a"),
+  pillSoonFg: new Color("#ff9f0a"),
+  pillOkFg: new Color("#32d74b"),
 };
 
 function torontoParts(date = new Date()) {
@@ -324,10 +321,10 @@ function addTransitIcon(row, trip, size) {
 function addTransferDetails(widget, trip, isMedium) {
   if (!trip.hasTransfer) return;
 
-  const routeFont = isMedium ? 9 : 10;
-  const stationFont = isMedium ? 8 : 9;
-  const transferFont = isMedium ? 8 : 9;
-  const indent = isMedium ? 23 : 25;
+  const routeFont = 10;
+  const stationFont = 9;
+  const transferFont = 8;
+  const indent = 8;
 
   widget.addSpacer(isMedium ? 2 : 3);
 
@@ -373,17 +370,7 @@ function buildWidget(data, family) {
   const topGap = isMedium ? 9 : 11;
 
   const w = new ListWidget();
-  w.backgroundColor = Color.dynamic(new Color("#ffffff", 0.72), new Color("#000000", 0.60));
-
-  const grad = new LinearGradient();
-  grad.locations = [0, 1];
-  grad.colors = [
-    Color.dynamic(new Color("#ffffff", 0.10), new Color("#ffffff", 0.06)),
-    Color.dynamic(new Color("#ffffff", 0.00), new Color("#ffffff", 0.00)),
-  ];
-  grad.startPoint = new Point(0, 0);
-  grad.endPoint = new Point(0, 1);
-  w.backgroundGradient = grad;
+  w.backgroundColor = new Color("#000000", 1.0);
   w.setPadding(13, 14, 11, 14);
 
   const hStack = w.addStack();
@@ -441,13 +428,14 @@ function buildWidget(data, family) {
       const depTxt = row.addText(trip.departureTime);
       depTxt.textColor = trip.type === "bus" ? C.depBus : C.depTime;
       depTxt.font = Font.boldSystemFont(depSz);
-      depTxt.minimumScaleFactor = 0.8;
+      depTxt.minimumScaleFactor = 1.0;
       depTxt.lineLimit = 1;
 
       if (trip.duration) {
         const durTxt = row.addText(trip.duration);
         durTxt.textColor = C.duration;
         durTxt.font = Font.systemFont(durSz);
+        durTxt.minimumScaleFactor = 1.0;
         durTxt.lineLimit = 1;
       }
 
@@ -491,7 +479,7 @@ function buildWidget(data, family) {
 
 function errorWidget(msg) {
   const w = new ListWidget();
-  w.backgroundColor = Color.dynamic(new Color("#ffffff", 0.72), new Color("#000000", 0.60));
+  w.backgroundColor = new Color("#000000", 1.0);
   w.setPadding(14, 14, 14, 14);
   const t = w.addText(`GO Transit\n\n${msg}`);
   t.textColor = dc("#cc1100", "#ff453a");
