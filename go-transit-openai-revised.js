@@ -25,6 +25,8 @@ const C = {
   depTime: dc("#111111", "#f0f0f0"),
   depBus: dc("#555555", "#aaaaaa"),
   duration: dc("#999999", "#666666"),
+  transferRoute: dc("#c06000", "#ff9f0a"),
+  stationDetails: dc("#777777", "#999999"),
   noSvc: dc("#aaaaaa", "#555555"),
   footer: dc("#bbbbbb", "#555555"),
   badgeTxt: dc("#ffffff", "#ffffff"),
@@ -112,7 +114,8 @@ function shortDuration(value) {
   if (!value) return "";
 
   const text = String(value).replace(/^Duration:\s*/i, "").trim();
-  const colon = text.match(/^(\d+):(\d{2})$/);
+  // Handle HH:MM:SS or HH:MM
+  const colon = text.match(/^(\d+):(\d{2})(?::\d{2})?$/);
   if (colon) {
     return `${Number(colon[1]) * 60 + Number(colon[2])}m`;
   }
@@ -147,16 +150,108 @@ function routeBadge(sections) {
   return `${routes[0]}+${routes.length - 1}`;
 }
 
+function compactTime(value) {
+  if (!value) return "";
+
+  const text = String(value).trim();
+  const timeMatch = text.match(/(\d{1,2}:\d{2})(?::\d{2})?\s*([AP]\.?M\.?)?/i);
+  if (timeMatch) {
+    const suffix = timeMatch[2]
+      ? ` ${timeMatch[2].replace(/\./g, "").toUpperCase()}`
+      : "";
+    return `${timeMatch[1]}${suffix}`;
+  }
+
+  const parsed = new Date(text);
+  if (!Number.isNaN(parsed.getTime())) {
+    return new Intl.DateTimeFormat("en-US", {
+      timeZone: TIMEZONE,
+      hour: "numeric",
+      minute: "2-digit",
+    }).format(parsed);
+  }
+
+  return text;
+}
+
+function sectionMode(section) {
+  return isBusSection(section) ? "Bus" : "Train";
+}
+
+function sectionRouteText(section) {
+  const line = String(section.LineNumber || "GO").trim();
+  const tripNo = section.TripNumber ? ` (${section.TripNumber})` : "";
+  return `${sectionMode(section)} ${line}${tripNo}`;
+}
+
+function sectionStationText(section) {
+  const dep = shortStationName(section.DepartureStopName || "");
+  const arr = shortStationName(section.ArrivalStopName || "");
+  const depTime = compactTime(section.DepartureTime);
+  const arrTime = compactTime(section.ArrivalTime);
+  const depPart = depTime ? `${dep} ${depTime}` : dep;
+  const arrPart = arrTime ? `${arr} ${arrTime}` : arr;
+  return `${depPart} -> ${arrPart}`;
+}
+
+function parseDepartureDateTime(raw) {
+  if (!raw) return new Date(NaN);
+  const s = String(raw).trim();
+  // If already has timezone info (Z, +HH:MM, -HH:MM), parse as-is
+  if (/[Zz]$/.test(s) || /[+-]\d{2}:\d{2}$/.test(s)) {
+    return new Date(s);
+  }
+  // No timezone — API returns local Toronto time; attach the offset manually.
+  // We compute the current UTC offset for America/Toronto dynamically so it
+  // works for both EST (−05:00) and EDT (−04:00).
+  const now = new Date();
+  const torontoStr = now.toLocaleString("en-CA", { timeZone: TIMEZONE, hour12: false });
+  const utcStr   = now.toLocaleString("en-CA", { timeZone: "UTC",          hour12: false });
+  const torontoParsed = new Date(torontoStr.replace(",", ""));
+  const utcParsed     = new Date(utcStr.replace(",", ""));
+  const offsetMs = utcParsed - torontoParsed;          // positive when behind UTC
+  const offsetMin = Math.round(offsetMs / 60000);
+  const sign = offsetMin <= 0 ? "+" : "-";
+  const abs  = Math.abs(offsetMin);
+  const hh   = String(Math.floor(abs / 60)).padStart(2, "0");
+  const mm   = String(abs % 60).padStart(2, "0");
+  return new Date(`${s}${sign}${hh}:${mm}`);
+}
+
+function parseDepartureTimeDisplay(displayStr) {
+  // DepartureTimeDisplay is like "16:42" or "4:42 PM" - combine with today Toronto date
+  if (!displayStr) return new Date(NaN);
+  const p = torontoParts();
+  const today = `${p.year}-${p.month}-${p.day}`;
+  const m24 = String(displayStr).trim().match(/^(\d{1,2}):(\d{2})$/);
+  if (m24) {
+    return parseDepartureDateTime(`${today}T${m24[1].padStart(2,"0")}:${m24[2]}:00`);
+  }
+  const m12 = String(displayStr).trim().match(/^(\d{1,2}):(\d{2})\s*([AP]M)$/i);
+  if (m12) {
+    let h = Number(m12[1]);
+    const mn = m12[2];
+    const ampm = m12[3].toUpperCase();
+    if (ampm === "AM" && h === 12) h = 0;
+    if (ampm === "PM" && h !== 12) h += 12;
+    return parseDepartureDateTime(`${today}T${String(h).padStart(2,"0")}:${mn}:00`);
+  }
+  return new Date(NaN);
+}
+
 function normalizeTrip(trip) {
   const sections = sectionList(trip);
   const first = sections[0] || {};
-  const depDate = new Date(trip.DepartureDateTime);
+  let depDate = parseDepartureDateTime(trip.DepartureDateTime);
+  if (Number.isNaN(depDate.getTime())) {
+    depDate = parseDepartureTimeDisplay(trip.DepartureTimeDisplay);
+  }
   const depMs = depDate.getTime();
   const hasValidDate = !Number.isNaN(depMs);
   const hasTransfer = sections.length > 1;
   const usesBus = sections.some(isBusSection);
   const type = isBusSection(first) ? "bus" : "train";
-  const minsAway = hasValidDate ? Math.round((depMs - Date.now()) / 60000) : 0;
+  const minsAway = hasValidDate ? Math.round((depMs - Date.now()) / 60000) : null;
 
   return {
     raw: trip,
@@ -176,7 +271,7 @@ function normalizeTrip(trip) {
 function selectTrips(trips, family) {
   const upcoming = trips
     .map(normalizeTrip)
-    .filter(trip => trip.minsAway >= -1)
+    .filter(trip => trip.minsAway === null || trip.minsAway >= -1)
     .sort((a, b) => a.departureMs - b.departureMs);
 
   if (family === "medium") {
@@ -190,7 +285,15 @@ function selectTrips(trips, family) {
       .slice(0, MEDIUM_MAX);
   }
 
-  return upcoming.slice(0, LARGE_MAX);
+  const selected = [];
+  let rowBudget = 0;
+  for (const trip of upcoming) {
+    const weight = trip.hasTransfer ? 3 : 1;
+    if (selected.length > 0 && rowBudget + weight > LARGE_MAX) break;
+    selected.push(trip);
+    rowBudget += weight;
+  }
+  return selected;
 }
 
 function tripData(rawTrips, routeConfig, family) {
@@ -216,6 +319,45 @@ function addTransitIcon(row, trip, size) {
     fallback.textColor = trip.type === "bus" ? C.depBus : C.depTime;
     fallback.font = Font.boldSystemFont(size);
   }
+}
+
+function addTransferDetails(widget, trip, isMedium) {
+  if (!trip.hasTransfer) return;
+
+  const routeFont = isMedium ? 9 : 10;
+  const stationFont = isMedium ? 8 : 9;
+  const transferFont = isMedium ? 8 : 9;
+  const indent = isMedium ? 23 : 25;
+
+  widget.addSpacer(isMedium ? 2 : 3);
+
+  const detailWrap = widget.addStack();
+  detailWrap.layoutHorizontally();
+  detailWrap.addSpacer(indent);
+
+  const detailStack = detailWrap.addStack();
+  detailStack.layoutVertically();
+
+  trip.sections.forEach((section, index) => {
+    const routeText = detailStack.addText(`${sectionRouteText(section)} - Transfers`);
+    routeText.font = Font.systemFont(routeFont);
+    routeText.textColor = C.transferRoute;
+    routeText.lineLimit = 1;
+    routeText.minimumScaleFactor = 0.7;
+
+    const stationText = detailStack.addText(sectionStationText(section));
+    stationText.font = Font.systemFont(stationFont);
+    stationText.textColor = C.stationDetails;
+    stationText.lineLimit = 1;
+    stationText.minimumScaleFactor = 0.55;
+
+    if (index < trip.sections.length - 1) {
+      const transferText = detailStack.addText("Transfer");
+      transferText.font = Font.systemFont(transferFont);
+      transferText.textColor = C.transferRoute;
+      transferText.lineLimit = 1;
+    }
+  });
 }
 
 function buildWidget(data, family) {
@@ -312,9 +454,10 @@ function buildWidget(data, family) {
       row.addSpacer();
 
       const away = trip.minsAway;
-      const isNow = away <= 1;
-      const urgent = away <= 5;
-      const soon = away <= 15;
+      const unknown = away === null;
+      const isNow = !unknown && away <= 1;
+      const urgent = unknown || away <= 5;
+      const soon = !unknown && away <= 15;
       const pillBg = urgent ? C.pillUrgentBg : soon ? C.pillSoonBg : C.pillOkBg;
       const pillFg = urgent ? C.pillUrgentFg : soon ? C.pillSoonFg : C.pillOkFg;
 
@@ -322,10 +465,13 @@ function buildWidget(data, family) {
       pill.backgroundColor = pillBg;
       pill.cornerRadius = 4;
       pill.setPadding(2, 6, 2, 6);
-      const pTxt = pill.addText(isNow ? "NOW" : `${away}m`);
+      const pillLabel = unknown ? "?m" : isNow ? "NOW" : `${away}m`;
+      const pTxt = pill.addText(pillLabel);
       pTxt.textColor = pillFg;
       pTxt.font = Font.boldSystemFont(pillSz);
       pTxt.lineLimit = 1;
+
+      addTransferDetails(w, trip, isMedium);
 
       w.addSpacer(rowGap);
     }
