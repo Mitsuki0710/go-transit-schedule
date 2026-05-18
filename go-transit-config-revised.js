@@ -19,39 +19,30 @@ const stations = {
     UP_EXPRESS: UP_EXPRESS
 }
 
-const colorSchemes = {
-    light: {
-        title: "#000000",
-        stationInfo: "#0066CC",
-        timeText: "#333333",
-        duration: "#666666",
-        transferRoute: "#FF6B00",
-        directRoute: "#008E44",
-        stationDetails: "#707070",
-        separator: "#CCCCCC"         // Light gray for separators
-    },
-    dark: {
-        title: "#FFFFFF",            // White for title
-        stationInfo: "#0066CC",      // Blue for station info
-        timeText: "#FFFFFF",         // White for time
-        duration: "#666666",         // Gray for duration
-        transferRoute: "#FF6B00",    // Orange for transfer routes
-        directRoute: "#008E44",      // Green for direct routes
-        stationDetails: "#707070",   // Light gray for station details
-        separator: "#CCCCCC"         // Light gray for separators
-    }
-};
-
 async function configureStations() {
     try {
-        // Use default route configuration
-        let routeInfo = {
-            type: "default",
-            name: "Go Transit Route",
-            filename: "gotransit-config.json"
-        };
-        
-        // Select departure line first
+        // Step 1: Ask for config name
+        let nameAlert = new Alert();
+        nameAlert.title = "Config Name";
+        nameAlert.message = "Enter a name for this config (e.g. inbound, outbound).\nFile will be saved as gotransit-config-{name}.json";
+        nameAlert.addTextField("e.g. inbound", "");
+        nameAlert.addAction("Continue");
+        nameAlert.addCancelAction("Cancel");
+        let nameResult = await nameAlert.presentAlert();
+        if (nameResult === -1) return;
+
+        let configName = nameAlert.textFieldValue(0).trim().replace(/[^a-zA-Z0-9_-]/g, "");
+        if (!configName) {
+            let errAlert = new Alert();
+            errAlert.title = "Invalid Name";
+            errAlert.message = "Config name cannot be empty or contain special characters. Please try again.";
+            errAlert.addAction("OK");
+            await errAlert.presentAlert();
+            return;
+        }
+        const configFilename = `gotransit-config-${configName}.json`;
+
+        // Step 2: Select departure line
         let departureLineIndex;
         while (departureLineIndex === undefined) {
             let departureLineAlert = new Alert();
@@ -60,16 +51,13 @@ async function configureStations() {
             Object.keys(stations).forEach(line => departureLineAlert.addAction(line));
             departureLineAlert.addCancelAction("Cancel");
             departureLineIndex = await departureLineAlert.presentSheet();
-            if (departureLineIndex === -1) {
-                return;
-            }
+            if (departureLineIndex === -1) return;
         }
-        
-        // Get departure line name and stations
+
         let departureLineName = Object.keys(stations)[departureLineIndex];
         let departureStations = stations[departureLineName];
-        
-        // Select departure station from the selected line
+
+        // Step 3: Select departure station
         let departureStationIndex;
         while (departureStationIndex === undefined) {
             let departureStationAlert = new Alert();
@@ -78,12 +66,10 @@ async function configureStations() {
             departureStations.forEach(station => departureStationAlert.addAction(station));
             departureStationAlert.addCancelAction("Cancel");
             departureStationIndex = await departureStationAlert.presentSheet();
-            if (departureStationIndex === -1) {
-                return;
-            }
+            if (departureStationIndex === -1) return;
         }
-        
-        // Select arrival line
+
+        // Step 4: Select arrival line
         let arrivalLineIndex;
         while (arrivalLineIndex === undefined) {
             let arrivalLineAlert = new Alert();
@@ -92,16 +78,13 @@ async function configureStations() {
             Object.keys(stations).forEach(line => arrivalLineAlert.addAction(line));
             arrivalLineAlert.addCancelAction("Cancel");
             arrivalLineIndex = await arrivalLineAlert.presentSheet();
-            if (arrivalLineIndex === -1) {
-                return;
-            }
+            if (arrivalLineIndex === -1) return;
         }
-        
-        // Get arrival line name and stations
+
         let arrivalLineName = Object.keys(stations)[arrivalLineIndex];
         let arrivalStations = stations[arrivalLineName];
-        
-        // Select arrival station from the selected line
+
+        // Step 5: Select arrival station
         let arrivalStationIndex;
         while (arrivalStationIndex === undefined) {
             let arrivalStationAlert = new Alert();
@@ -110,12 +93,10 @@ async function configureStations() {
             arrivalStations.forEach(station => arrivalStationAlert.addAction(station));
             arrivalStationAlert.addCancelAction("Cancel");
             arrivalStationIndex = await arrivalStationAlert.presentSheet();
-            if (arrivalStationIndex === -1) {
-                return;
-            }
+            if (arrivalStationIndex === -1) return;
         }
-        
-        // Select travel mode
+
+        // Step 6: Select travel mode
         let modeIndex;
         while (modeIndex === undefined) {
             let modeAlert = new Alert();
@@ -126,52 +107,37 @@ async function configureStations() {
             modeAlert.addAction("Bus Only");
             modeAlert.addCancelAction("Cancel");
             modeIndex = await modeAlert.presentSheet();
-            if (modeIndex === -1) {
-                return;
-            }
+            if (modeIndex === -1) return;
         }
 
-        // Convert mode selection to API parameter
-        let travelMode;
-        switch(modeIndex) {
-            case 0:
-                travelMode = "All";
-                break;
-            case 1:
-                travelMode = "Train";
-                break;
-            case 2:
-                travelMode = "Bus";
-                break;
-        }
+        const travelModes = ["All", "Train", "Bus"];
+        const travelMode = travelModes[modeIndex];
 
-        // Save configuration with default filename
+        // Save config
         let fm = FileManager.local();
-        let configPath = fm.joinPath(fm.documentsDirectory(), "gotransit-config-work.json");
-        let config = {
+        let configPath = fm.joinPath(fm.documentsDirectory(), configFilename);
+        let configData = {
             departure: departureStations[departureStationIndex],
             arrival: arrivalStations[arrivalStationIndex],
             departureLine: departureLineName,
             arrivalLine: arrivalLineName,
-            travelMode: travelMode,
-            routeType: routeInfo.name
+            travelMode: travelMode
         };
-        fm.writeString(configPath, JSON.stringify(config, null, 2));
-        
-        // Show confirmation
+        fm.writeString(configPath, JSON.stringify(configData, null, 2));
+
+        // Confirm
         let confirmAlert = new Alert();
         confirmAlert.title = "Configuration Saved";
-        confirmAlert.message = `Config File: gotransit-config.json
-            Departure Line: ${config.departureLine}
-            Departure Station: ${config.departure}
-            Arrival Line: ${config.arrivalLine}
-            Arrival Station: ${config.arrival}
-            Travel Mode: ${config.travelMode}`;
+        confirmAlert.message = `File: ${configFilename}
+Departure: ${configData.departure} (${configData.departureLine})
+Arrival:   ${configData.arrival} (${configData.arrivalLine})
+Mode:      ${configData.travelMode}
+
+Use "${configName}" as the widget parameter.`;
         confirmAlert.addAction("OK");
         await confirmAlert.presentAlert();
-        
+
     } catch (error) {
-        // Show error message
         let errorAlert = new Alert();
         errorAlert.title = "Error";
         errorAlert.message = "An error occurred while saving settings. Please try again.";

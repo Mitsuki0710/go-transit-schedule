@@ -3,8 +3,6 @@
 // icon-color: red; icon-glyph: magic;
 
 const TIMEZONE = "America/Toronto";
-const CONFIG_FILE = "gotransit-config-work.json";
-const LEGACY_CONFIG_FILE = "gotransit-config.json";
 const DEFAULT_DEPARTURE = "Union Station GO";
 const DEFAULT_ARRIVAL = "Unionville GO";
 const DEFAULT_TRAVEL_MODE = "All";
@@ -14,6 +12,16 @@ const LARGE_MAX = 8;
 const widgetFamily = config.widgetFamily
   ? (config.widgetFamily === "large" ? "large" : "medium")
   : "large";
+
+// Widget parameter selects which config file to load.
+// e.g. parameter "inbound"  → gotransit-config-inbound.json
+// e.g. parameter "outbound" → gotransit-config-outbound.json
+// No parameter              → falls back to legacy gotransit-config-work.json / gotransit-config.json
+const widgetParam = (typeof args !== "undefined" && args.widgetParameter)
+  ? String(args.widgetParameter).trim().replace(/[^a-zA-Z0-9_-]/g, "")
+  : "";
+const CONFIG_FILE = widgetParam ? `gotransit-config-${widgetParam}.json` : "gotransit-config-work.json";
+const LEGACY_CONFIG_FILE = "gotransit-config.json";
 
 
 const C = {
@@ -321,10 +329,10 @@ function addTransitIcon(row, trip, size) {
 function addTransferDetails(widget, trip, isMedium) {
   if (!trip.hasTransfer) return;
 
-  const routeFont = 10;
-  const stationFont = 9;
-  const transferFont = 8;
-  const indent = 8;
+  const routeFont = isMedium ? 9 : 10;
+  const stationFont = isMedium ? 8 : 9;
+  const transferFont = isMedium ? 8 : 9;
+  const indent = isMedium ? 23 : 25;
 
   widget.addSpacer(isMedium ? 2 : 3);
 
