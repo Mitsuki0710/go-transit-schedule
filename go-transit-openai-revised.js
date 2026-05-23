@@ -6,8 +6,7 @@ const TIMEZONE = "America/Toronto";
 const DEFAULT_DEPARTURE = "Union Station GO";
 const DEFAULT_ARRIVAL = "Unionville GO";
 const DEFAULT_TRAVEL_MODE = "All";
-const MEDIUM_MAX = 4;
-const LARGE_MAX = 8;
+
 
 const widgetFamily = config.widgetFamily
   ? (config.widgetFamily === "large" ? "large" : "medium")
@@ -282,23 +281,15 @@ function selectTrips(trips, family) {
   if (family === "medium") {
     const direct = upcoming.filter(trip => !trip.hasTransfer);
     const transfer = upcoming.filter(trip => trip.hasTransfer);
-    if (direct.length >= MEDIUM_MAX) {
-      return direct.slice(0, MEDIUM_MAX);
+    if (direct.length >= 3) {
+      return direct.slice(0, 3);
     }
     return [...direct, ...transfer]
       .sort((a, b) => a.departureMs - b.departureMs)
-      .slice(0, MEDIUM_MAX);
+      .slice(0, 3);
   }
 
-  const selected = [];
-  let rowBudget = 0;
-  for (const trip of upcoming) {
-    const weight = trip.hasTransfer ? 3 : 1;
-    if (selected.length > 0 && rowBudget + weight > LARGE_MAX) break;
-    selected.push(trip);
-    rowBudget += weight;
-  }
-  return selected;
+  return upcoming.slice(0, 3);
 }
 
 function tripData(rawTrips, routeConfig, family) {
@@ -520,7 +511,7 @@ async function fetchTripPointID(stationName) {
 
 async function fetchTripPlans(departureID, arrivalID, pageLimit, travelMode) {
   const date = new Date();
-  date.setMinutes(date.getMinutes() - 30);
+  date.setMinutes(date.getMinutes() - 10);
   const formattedDate = apiDateTime(date);
 
   let url = "https://api.metrolinx.com/external/go/tripplanner/search";
@@ -550,7 +541,7 @@ async function getTripPlans() {
     throw new Error("Could not find station IDs for the configured route.");
   }
 
-  const pageLimit = widgetFamily === "large" ? LARGE_MAX : Math.max(LARGE_MAX, MEDIUM_MAX + 2);
+  const pageLimit = 3;
   const rawTrips = await fetchTripPlans(
     departureID,
     arrivalID,
