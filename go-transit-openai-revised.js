@@ -201,25 +201,33 @@ function sectionStationText(section) {
 function parseDepartureDateTime(raw) {
   if (!raw) return new Date(NaN);
   const s = String(raw).trim();
-  // If already has timezone info (Z, +HH:MM, -HH:MM), parse as-is
+
+  // Already has timezone info
   if (/[Zz]$/.test(s) || /[+-]\d{2}:\d{2}$/.test(s)) {
     return new Date(s);
   }
-  // No timezone — API returns local Toronto time; attach the offset manually.
-  // We compute the current UTC offset for America/Toronto dynamically so it
-  // works for both EST (−05:00) and EDT (−04:00).
+
+  // NEW format: "DD/MM/YYYY HH:MM:SS" (Metrolinx API change)
+  const ddmmyyyy = s.match(/^(\d{2})\/(\d{2})\/(\d{4})\s+(\d{2}):(\d{2}):(\d{2})$/);
+  if (ddmmyyyy) {
+    const [, dd, mm, yyyy, hh, min, sec] = ddmmyyyy;
+    return parseDepartureDateTime(`${yyyy}-${mm}-${dd}T${hh}:${min}:${sec}`);
+  }
+
+  // Old ISO format: "YYYY-MM-DDTHH:MM:SS" — compute Toronto offset
   const now = new Date();
-  const torontoStr = now.toLocaleString("en-CA", { timeZone: TIMEZONE, hour12: false });
-  const utcStr   = now.toLocaleString("en-CA", { timeZone: "UTC",          hour12: false });
-  const torontoParsed = new Date(torontoStr.replace(",", ""));
-  const utcParsed     = new Date(utcStr.replace(",", ""));
-  const offsetMs = utcParsed - torontoParsed;          // positive when behind UTC
+  const p = torontoParts(now);
+  const torontoMs = Date.UTC(
+    Number(p.year), Number(p.month) - 1, Number(p.day),
+    Number(p.hour), Number(p.minute), 0
+  );
+  const offsetMs = now.getTime() - torontoMs;
   const offsetMin = Math.round(offsetMs / 60000);
-  const sign = offsetMin <= 0 ? "+" : "-";
-  const abs  = Math.abs(offsetMin);
-  const hh   = String(Math.floor(abs / 60)).padStart(2, "0");
-  const mm   = String(abs % 60).padStart(2, "0");
-  return new Date(`${s}${sign}${hh}:${mm}`);
+  const sign = offsetMin >= 0 ? "-" : "+";
+  const abs = Math.abs(offsetMin);
+  const hh2 = String(Math.floor(abs / 60)).padStart(2, "0");
+  const mm2 = String(abs % 60).padStart(2, "0");
+  return new Date(`${s}${sign}${hh2}:${mm2}`);
 }
 
 function parseDepartureTimeDisplay(displayStr) {
@@ -527,6 +535,7 @@ async function fetchTripPlans(departureID, arrivalID, pageLimit, travelMode) {
   console.log(url);
   const req = new Request(url);
   const response = await req.loadJSON();
+  console.log(response.Trips?.items);
   return response.Trips?.items || [];
 }
 
@@ -572,3 +581,4 @@ async function main() {
 
 await main();
 Script.complete();
+
