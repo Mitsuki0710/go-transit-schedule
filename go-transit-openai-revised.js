@@ -519,7 +519,10 @@ async function fetchTripPointID(stationName) {
 
 async function fetchTripPlans(departureID, arrivalID, pageLimit, travelMode) {
   const date = new Date();
-  date.setMinutes(date.getMinutes() - 10);
+  const mins = date.getMinutes();
+  const roundedMins = mins < 30 ? 30 : 60;
+  date.setMinutes(roundedMins, 0, 0);
+  
   const formattedDate = apiDateTime(date);
 
   let url = "https://api.metrolinx.com/external/go/tripplanner/search";
